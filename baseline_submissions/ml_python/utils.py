@@ -50,8 +50,8 @@ def tabularize_data(data_dir, feature_cols, ground_truth=None, lag_steps=1, fill
                                         how='left')
 
             # Fill 'unknown' values in 'EW' and 'NS' columns that come before the first valid observation
-            merged_df['EW'].ffill(inplace=True)
-            merged_df['NS'].ffill(inplace=True)
+            merged_df['EW'] = merged_df['EW'].ffill()
+            merged_df['NS'] = merged_df['NS'].ffill()
             
         merged_data = pd.concat([merged_data, merged_df])
 

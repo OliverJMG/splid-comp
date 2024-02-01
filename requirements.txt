@@ -1,6 +1,9 @@
 scikit-learn==1.3.2
 pandas
+pyarrow
 numpy
 matplotlib
 jupyterlab
+notebook
 fastcore
+torch
