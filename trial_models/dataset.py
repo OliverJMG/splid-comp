@@ -1,57 +1,86 @@
-import os
-import pandas as pd
-from sklearn.preprocessing import LabelEncoder
+import torch
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from torch.utils.data import Dataset
+import pandas as pd
+import numpy as np
+from pathlib import Path
 
-# Pytorch class for SPLID dataset
 class SPLID(Dataset):
-    def __init__(self, data_dir, label_file):
+    def __init__(self, datalist, labels, columns, classes=None):
+        self.datalist = datalist
+        self.labels = pd.read_csv(labels)
+        self.columns = columns
 
-        self.train_dir = data_dir
+        self.labels['merged_label'] = self.labels['Node'] + '-' + self.labels['Type']
 
-        datalist = []
+        # Convert categorical data to numerical data
+        self.le_type = LabelEncoder()
+        if classes is None:
+            self.le_type = LabelEncoder()
+            self.labels['type_encoded'] = self.le_type.fit_transform(self.labels['merged_label'])
+        else:
+            self.le_type = LabelEncoder()
+            self.le_type.fit(classes)
+            self.labels['type_encoded'] = self.le_type.transform(self.labels['merged_label'])
 
-        # Searching for training data within the dataset folder
-        for file in os.listdir(self.train_dir):
-            if file.endswith(".csv"):
-                datalist.append(os.path.join(self.train_dir, file))
+        n_files = len(datalist)
+        print('Loading {} files...'.format(n_files))
 
-        # Sort the training data and labels
-        self.datalist = sorted(datalist, key=lambda i: int(os.path.splitext(os.path.basename(i))[0]))
+        frames = []
 
-        self.node_labels = pd.read_csv(label_file)
+        for idx, file in enumerate(datalist):
+            oid = int(Path(file).stem)
+            data = pd.read_csv(file)
+            data = data[columns].copy()
+            data['ObjectID'] = oid
+
+            if len(data) != 2172:
+                continue
+
+            labels = self.labels[(self.labels['ObjectID'] == oid)]
+
+            for row in labels.itertuples():
+                if row.Direction == 'NS':
+                    data.loc[row.TimeIndex:, 'NS'] = row.type_encoded
+                elif row.Direction == 'EW':
+                    data.loc[row.TimeIndex:, 'EW'] = row.type_encoded
+                else:  # direction is ES - 'end of sample'
+                    data.loc[row.TimeIndex:, 'EW'] = row.type_encoded
+                    data.loc[row.TimeIndex:, 'NS'] = row.type_encoded
+
+            frames.append(data)
+
+            if idx % 50 == 0:
+                print('Loaded file {} of {}'.format(idx, n_files))
+
+        print('Joining dataframes...')
+
+        df = pd.concat(frames, ignore_index=True)
+        print('Done!')
+
+        self.col_transformer = ColumnTransformer([("scaler", StandardScaler(), self.columns)], remainder="passthrough")
+        self.col_transformer.fit(df)
+
+        self.df = df
+        self.ids = self.df['ObjectID'].unique()
 
     def __len__(self):
-        return len(self.datalist)
+        return len(self.ids)
 
     def __getitem__(self, idx):
-        data_df = pd.read_csv(self.datalist[idx])
-        data_df['TimeIndex'] = range(len(data_df))
+        data = self.df[self.df['ObjectID'] == self.ids[idx]]
+        series = self.col_transformer.transform(data)[:, :len(self.columns)]
+        labels = data[['EW', 'NS']].values
 
-        labels = self.node_labels[self.node_labels["ObjectID"] == idx+1].copy()
+        series = torch.tensor(series, dtype=torch.float32)
+        labels = torch.tensor(labels, dtype=torch.long)
 
-        labels_EW = labels[labels["Direction"] == "EW"].copy()
-        labels_EW.insert(1, "EW", labels_EW["Node"] + '-' + labels_EW["Type"], True)
-        labels_EW.drop(["Node", "Type", "Direction", "ObjectID"], axis=1, inplace=True)
+        return torch.permute(series, (1,0)), torch.permute(labels, (1,0))
 
-        labels_NS = labels[labels["Direction"] == "NS"].copy()
-        labels_NS.insert(1, "NS", labels_NS["Node"] + '-' + labels_NS["Type"], True)
-        labels_NS.drop(["Node", "Type", "Direction", "ObjectID"], axis=1, inplace=True)
+    def get_id(self, idx):
+        return self.ids[idx]
 
-        # Merge the input data with the ground truth
-        merged_df = pd.merge(data_df,
-                             labels_EW.sort_values('TimeIndex'),
-                             on=['TimeIndex'],
-                             how='left')
-        merged_df = pd.merge_ordered(merged_df,
-                                     labels_NS.sort_values('TimeIndex'),
-                                     on=['TimeIndex'],
-                                     how='left')
-        # Replace NaN values
-        merged_df['EW'] = merged_df['EW'].fillna("none")
-        merged_df['NS'] = merged_df['NS'].fillna("none")
-
-        merged_df.drop("Timestamp", axis=1, inplace=True)
-
-        return merged_df.drop(["EW", "NS"], axis=1).to_numpy(), merged_df[["EW", "NS"]].to_numpy()
+    def get_labels(self, idx):
+        return self.labels[self.labels['ObjectID'] == self.get_id(idx)]
 

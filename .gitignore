@@ -159,3 +159,5 @@ trained_model/
 predictions
 /dataset/
 .idea/
+/trial_models/runs/
+/trial_models/saved_models/
