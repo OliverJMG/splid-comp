@@ -38,10 +38,11 @@ train_datalist, test_datalist = train_test_split(datalist, test_size=0.25)
 
 
 cols = ['Inclination (deg)', 'Longitude (deg)']  # Select cols to pass to ml model
+classes = ['SS-CK', 'SS-EK', 'SS-HK', 'SS-NK', 'IK-CK', 'IK-EK', 'IK-HK', 'ID-NK', 'AD-NK', 'ES-ES']
 
 # Train and test datasets/dataloaders for pytorch
-trn_data = SPLID(train_datalist, ground_truth, cols)
-tst_data = SPLID(test_datalist, ground_truth, cols, classes=trn_data.le_type.classes_)
+trn_data = SPLID(train_datalist, ground_truth, cols, classes=classes)
+tst_data = SPLID(test_datalist, ground_truth, cols, classes=classes)
 
 trn_loader = data.DataLoader(trn_data, shuffle=True, batch_size=10)
 tst_loader = data.DataLoader(tst_data, shuffle=True, batch_size=10)
@@ -51,7 +52,7 @@ lr = 5e-6
 n_epochs = 1000
 best_tst_loss = 1_000_000.
 
-model = UTime(len(trn_data.le_type.classes_))
+model = UTime(len(classes))
 model = model.cuda()
 criterion = nn.NLLLoss()
 opt = torch.optim.Adam(model.parameters(), lr=lr)
