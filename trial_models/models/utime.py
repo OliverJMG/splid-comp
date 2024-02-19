@@ -92,7 +92,7 @@ class Classifier(nn.Module):
         self.conv1 = nn.Conv1d(in_c, classes*2, kernel_size=1, padding='same')
         self.tanh = nn.Tanh()
         self.conv2 = nn.Conv1d(classes*2, classes*2, kernel_size=1, padding='same')
-        self.softmax = nn.LogSoftmax(dim=1)
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, inputs):
         x = self.conv1(inputs)

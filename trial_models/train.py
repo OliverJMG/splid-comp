@@ -6,7 +6,7 @@ from datetime import datetime
 import torch.nn as nn
 import torch.utils.data as data
 from torch.utils.tensorboard import SummaryWriter
-from models import UTime
+from trial_models.models.utime import UTime
 
 import os
 
@@ -37,8 +37,8 @@ datalist = sorted(datalist, key=lambda i: int(os.path.splitext(os.path.basename(
 train_datalist, test_datalist = train_test_split(datalist, test_size=0.25)
 
 
-cols = ['Inclination (deg)', 'Longitude (deg)']  # Select cols to pass to ml model
-classes = ['SS-CK', 'SS-EK', 'SS-HK', 'SS-NK', 'IK-CK', 'IK-EK', 'IK-HK', 'ID-NK', 'AD-NK', 'ES-ES']
+cols = ['Inclination (deg)', 'Longitude (deg)', 'Eccentricity', 'Semimajor Axis (m)', 'RAAN (deg)', 'Argument of Periapsis (deg)']  # Select cols to pass to ml model
+classes = ['ES-ES', 'SS-CK', 'SS-EK', 'SS-HK', 'SS-NK', 'IK-CK', 'IK-EK', 'IK-HK', 'ID-NK', 'AD-NK']
 
 # Train and test datasets/dataloaders for pytorch
 trn_data = SPLID(train_datalist, ground_truth, cols, classes=classes)

@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import SPLID
-from models import UTime
+from trial_models.models.prectime import PrecTime
 import helpers.utils as utils
 import helpers.evaluation as evaluation
 from fastcore.basics import Path, AttrDict
@@ -31,19 +31,22 @@ for file in os.listdir(train_data_dir):
 
 # Sort the training data and labels
 datalist = sorted(datalist, key=lambda i: int(os.path.splitext(os.path.basename(i))[0]))
+classes = ['ES-ES', 'SS-CK', 'SS-EK', 'SS-HK', 'SS-NK', 'IK-CK', 'IK-EK', 'IK-HK', 'ID-NK', 'AD-NK']
+cols = ['Inclination (deg)', 'Longitude (deg)', 'Eccentricity', 'Semimajor Axis (m)']
 
-splid = SPLID(datalist, ground_truth, ['Inclination (deg)', 'Longitude (deg)'])
+splid = SPLID(datalist, ground_truth, cols, classes=classes)
 
 loader = DataLoader(splid, batch_size=10)
-model = UTime(len(splid.le_type.classes_)).cuda()
-model.load_state_dict(torch.load('saved_models/model_20240217_155848.pth'))
+model = PrecTime(len(classes), n_win=92, l_win=24, c_in=len(cols), c_conv=128).cuda()
+model.load_state_dict(torch.load('saved_models/model_20240219_221903.pth'))
 model.eval()
 
 frames = []
 
 with torch.no_grad():
     for idx, (data, target) in enumerate(loader):
-        preds = np.argmax(model(data.cuda()).cpu(), axis=1)
+        fine_out, coarse_out = model(data.cuda())
+        preds = np.argmax(fine_out.cpu(), axis=1)
         for i in range(preds.shape[0]):
             df = pd.DataFrame(data=torch.permute(preds[i], (1,0)), columns=['Predicted_EW', 'Predicted_NS'])
             df['TimeIndex'] = df.index

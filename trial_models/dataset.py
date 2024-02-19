@@ -33,10 +33,6 @@ class SPLID(Dataset):
             oid = int(Path(file).stem)
             data = pd.read_csv(file)
             data = data[columns].copy()
-            data['ObjectID'] = oid
-
-            if len(data) != 2172:
-                continue
 
             labels = self.labels[(self.labels['ObjectID'] == oid)]
 
@@ -49,6 +45,9 @@ class SPLID(Dataset):
                     data.loc[row.TimeIndex:, 'EW'] = row.type_encoded
                     data.loc[row.TimeIndex:, 'NS'] = row.type_encoded
 
+            # Pad with 0s to 2208 rows before appending to ensure dimension uniformity
+            data = data.reindex(range(2208), fill_value=0)
+            data['ObjectID'] = oid
             frames.append(data)
 
             if idx % 50 == 0:
