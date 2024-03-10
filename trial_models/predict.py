@@ -37,8 +37,8 @@ cols = ['Inclination (deg)', 'Longitude (deg)', 'Eccentricity', 'Semimajor Axis 
 splid = SPLID(datalist, ground_truth, cols, classes=classes)
 
 loader = DataLoader(splid, batch_size=10)
-model = PrecTime(len(classes), n_win=24, l_win=92, c_in=len(cols), c_conv=128).cuda()
-model.load_state_dict(torch.load('saved_models/model_20240309_180024.pth'))
+model = PrecTime(len(classes), n_win=92, l_win=24, c_in=len(cols), c_conv=128).cuda()
+model.load_state_dict(torch.load('saved_models/model_20240310_185843.pth'))
 model.eval()
 
 frames = []

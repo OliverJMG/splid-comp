@@ -37,8 +37,9 @@ class SPLID(Dataset):
             for col in data.columns:
                 if '(deg)' in col:
                     data[col] = np.unwrap(data[col], period=360)
-                elif 'Vz' in col:
-                    data[col] = data[col].rolling(12).std()
+                # elif 'Vz' in col:
+                #     data[col] = data[col].rolling(12).std()
+                data[col] = data[col].rolling(12).std().diff(12)
 
             # Pad to 2208 rows to ensure dimension uniformity
             data = data.reindex(range(2208), fill_value=np.nan)

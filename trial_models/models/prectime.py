@@ -12,15 +12,15 @@ class PrecTime(nn.Module):
         self.ln1 = nn.LayerNorm([c_conv * 2, int(n_win * l_win) // 2])
 
         self.lstm1 = nn.LSTM(input_size=int(c_conv * l_win), hidden_size=c_lstm, num_layers=lstm_layers,
-                             batch_first=True, bidirectional=True, dropout=0.4)
+                             batch_first=True, bidirectional=True, dropout=0.5)
         self.ln2 = nn.LayerNorm([n_win, c_lstm * 2])
 
         self.lstm2 = nn.LSTM(input_size=int(c_conv * 12), hidden_size=100, num_layers=lstm_layers,
-                             batch_first=True, bidirectional=True, dropout=0.4)
+                             batch_first=True, bidirectional=True, dropout=0.5)
         self.ln3 = nn.LayerNorm([184, 100 * 2])
 
-        self.up1 = nn.Upsample(size=n_win * l_win // 2)
-        self.up2 = nn.Upsample(size=n_win * l_win // 2)
+        self.up1 = nn.Upsample(size=1104)
+        self.up2 = nn.Upsample(size=1104)
         self.refine = Refinement(c_in=2 * (c_lstm + c_conv + 100), c_conv=c_conv, out_classes=out_classes)
 
         # Intermediate label prediction steps
@@ -46,7 +46,7 @@ class PrecTime(nn.Module):
         x2 = torch.permute(x2, (0, 2, 1))
         x2 = self.up2(x2)
 
-        x = torch.cat([x1, x2, f_stack], dim=1)
+        x = torch.cat([x1, x2,  f_stack], dim=1)
         x = self.refine(x)
         fine_out = torch.reshape(x, (x.shape[0], x.shape[1] // 2, 2, x.shape[2]))
 
@@ -86,20 +86,19 @@ class FeatureExtraction(nn.Module):
 class Refinement(nn.Module):
     def __init__(self, c_in, c_conv, out_classes):
         super(Refinement, self).__init__()
-
+        self.drop = nn.Dropout1d(0.5)
         self.conv1 = nn.Conv1d(in_channels=c_in, out_channels=c_conv, kernel_size=5, padding='same')
         self.relu1 = nn.ReLU()
-        self.upconv = nn.ConvTranspose1d(in_channels=c_conv, out_channels=c_conv, kernel_size=6, stride=2, padding=2)
-        # self.conv2 = nn.Conv1d(in_channels=c_conv, out_channels=c_conv, kernel_size=5, padding='same')
-        self.drop = nn.Dropout1d(0.25)
+        self.up = nn.Upsample(scale_factor=2)
+        self.conv2 = nn.Conv1d(in_channels=c_conv, out_channels=c_conv, kernel_size=5, padding='same')
         self.fc = nn.Linear(in_features=c_conv, out_features=2*out_classes)
 
     def forward(self, x):
+        x = self.drop(x)
         x = self.conv1(x)
         x = self.relu1(x)
-        x = self.upconv(x)
-        # x = self.conv2(x)
-        x = self.drop(x)
+        x = self.up(x)
+        x = self.conv2(x)
         x = torch.permute(x, (0, 2, 1))
         x = self.fc(x)
         return torch.permute(x, (0, 2, 1))
