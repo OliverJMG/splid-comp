@@ -9,7 +9,8 @@ from pathlib import Path
 class SPLID(Dataset):
     def __init__(self, datalist, labels, columns, classes=None):
         self.datalist = datalist
-        self.labels = pd.read_csv(labels)
+        lbl = pd.read_csv(labels)
+        self.labels = lbl[lbl.Type != 'ES'].copy()
         self.columns = columns
 
         self.labels['merged_label'] = self.labels['Node'] + '-' + self.labels['Type']
@@ -33,7 +34,14 @@ class SPLID(Dataset):
             oid = int(Path(file).stem)
             data = pd.read_csv(file)
             data = data[columns].copy()
+            for col in data.columns:
+                if '(deg)' in col:
+                    data[col] = np.unwrap(data[col], period=360)
+                elif 'Vz' in col:
+                    data[col] = data[col].rolling(12).std()
 
+            # Pad to 2208 rows to ensure dimension uniformity
+            data = data.reindex(range(2208), fill_value=np.nan)
             labels = self.labels[(self.labels['ObjectID'] == oid)]
 
             for row in labels.itertuples():
@@ -41,12 +49,7 @@ class SPLID(Dataset):
                     data.loc[row.TimeIndex:, 'NS'] = row.type_encoded
                 elif row.Direction == 'EW':
                     data.loc[row.TimeIndex:, 'EW'] = row.type_encoded
-                else:  # direction is ES - 'end of sample'
-                    data.loc[row.TimeIndex:, 'EW'] = row.type_encoded
-                    data.loc[row.TimeIndex:, 'NS'] = row.type_encoded
 
-            # Pad with 0s to 2208 rows before appending to ensure dimension uniformity
-            data = data.reindex(range(2208), fill_value=0)
             data['ObjectID'] = oid
             frames.append(data)
 
@@ -70,6 +73,7 @@ class SPLID(Dataset):
     def __getitem__(self, idx):
         data = self.df[self.df['ObjectID'] == self.ids[idx]]
         series = self.col_transformer.transform(data)[:, :len(self.columns)]
+        series = np.nan_to_num(series)
         labels = data[['EW', 'NS']].values
 
         series = torch.tensor(series, dtype=torch.float32)

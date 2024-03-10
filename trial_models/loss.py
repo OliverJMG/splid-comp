@@ -2,9 +2,9 @@ import torch.nn as nn
 
 
 class WeightedCELoss(nn.Module):
-    def __init__(self, fine_weight=2, coarse_weight=1):
+    def __init__(self, class_weights, fine_weight=0.65, coarse_weight=0.35):
         super(WeightedCELoss, self).__init__()
-        self.celoss = nn.CrossEntropyLoss()
+        self.celoss = nn.CrossEntropyLoss(weight=class_weights)
         self.fine_weight = fine_weight
         self.coarse_weight = coarse_weight
 

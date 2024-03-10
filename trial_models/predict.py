@@ -19,8 +19,8 @@ config = AttrDict(
 )
 
 # Define the directory paths
-train_data_dir = config.challenge_data_dir / "train_v2"
-ground_truth = config.challenge_data_dir / 'train_labels_v2.csv'
+train_data_dir = config.challenge_data_dir / "train"
+ground_truth = config.challenge_data_dir / 'train_labels.csv'
 
 datalist = []
 
@@ -31,14 +31,14 @@ for file in os.listdir(train_data_dir):
 
 # Sort the training data and labels
 datalist = sorted(datalist, key=lambda i: int(os.path.splitext(os.path.basename(i))[0]))
-classes = ['ES-ES', 'SS-CK', 'SS-EK', 'SS-HK', 'SS-NK', 'IK-CK', 'IK-EK', 'IK-HK', 'ID-NK', 'AD-NK']
+classes = ['SS-CK', 'SS-EK', 'SS-HK', 'SS-NK', 'IK-CK', 'IK-EK', 'IK-HK', 'ID-NK', 'AD-NK']
 cols = ['Inclination (deg)', 'Longitude (deg)', 'Eccentricity', 'Semimajor Axis (m)', 'RAAN (deg)', 'Argument of Periapsis (deg)', 'Vz (m/s)']
 
 splid = SPLID(datalist, ground_truth, cols, classes=classes)
 
 loader = DataLoader(splid, batch_size=10)
-model = PrecTime(len(classes), n_win=92, l_win=24, c_in=len(cols), c_conv=128).cuda()
-model.load_state_dict(torch.load('saved_models/model_20240220_113758.pth'))
+model = PrecTime(len(classes), n_win=24, l_win=92, c_in=len(cols), c_conv=128).cuda()
+model.load_state_dict(torch.load('saved_models/model_20240309_180024.pth'))
 model.eval()
 
 frames = []
